@@ -36,7 +36,8 @@ public class Client {
             System.out.println("Подключено к серверу: " + socket.getInetAddress().getHostAddress());
             System.out.println("Начинаем измерения...\n");
             
-            OutputStream output = socket.getOutputStream();
+            // Используем DataOutputStream для отправки размера массива
+            DataOutputStream dataOutput = new DataOutputStream(socket.getOutputStream());
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             Random random = new Random();
             
@@ -50,9 +51,13 @@ public class Client {
                     
                     long startTime = System.currentTimeMillis();
                     
-                    output.write(data);
-                    output.flush();
+                    // Сначала отправляем размер массива (4 байта)
+                    dataOutput.writeInt(arraySize);
+                    // Затем отправляем сам массив
+                    dataOutput.write(data);
+                    dataOutput.flush();
                     
+                    // Получаем timestamp от сервера
                     String response = input.readLine();
                     
                     long endTime = System.currentTimeMillis();
@@ -64,6 +69,12 @@ public class Client {
                 
                 results[k][0] = arraySize;
                 results[k][1] = averageTime;
+                
+                // Выводим прогресс каждые 10% итераций
+                if ((k + 1) % (M / 10) == 0 || k == M - 1) {
+                    System.out.printf("Прогресс: %d/%d итераций (%.1f%%)\n", 
+                        k + 1, M, (k + 1) * 100.0 / M);
+                }
             }
             
             System.out.println("\nИзмерения завершены!");

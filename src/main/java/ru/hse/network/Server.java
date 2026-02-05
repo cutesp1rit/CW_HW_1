@@ -8,7 +8,6 @@ import java.util.Date;
 
 
 public class Server {
-    private static final int BUFFER_SIZE = 8192;
     
     public static void main(String[] args) {
         
@@ -47,32 +46,38 @@ public class Server {
 
     private static void handleClient(Socket clientSocket) {
         try (
-            InputStream input = clientSocket.getInputStream();
-            OutputStream output = clientSocket.getOutputStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-            PrintWriter writer = new PrintWriter(output, true)
+            DataInputStream dataInput = new DataInputStream(clientSocket.getInputStream());
+            PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)
         ) {
-            byte[] buffer = new byte[BUFFER_SIZE];
             int requestCount = 0;
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
             
             while (true) {
-                int bytesRead = 0;
-                int totalBytes = 0;
-                
-                while ((bytesRead = input.read(buffer)) != -1) {
-                    totalBytes += bytesRead;
+                try {
+                    // Читаем размер массива (4 байта)
+                    int arraySize = dataInput.readInt();
                     
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
+                    // Читаем ТОЧНО arraySize байт
+                    byte[] data = new byte[arraySize];
+                    dataInput.readFully(data);
+                    
+                    // Отправляем timestamp после получения всего массива
                     String timestamp = dateFormat.format(new Date());
-                    
                     writer.println(timestamp);
                     writer.flush();
                     
                     requestCount++;
-                    totalBytes = 0;
+                    
+                    // Выводим прогресс каждые 100 запросов
+                    if (requestCount % 100 == 0) {
+                        System.out.printf("Обработано запросов: %d (последний размер: %d байт)\n", 
+                            requestCount, arraySize);
+                    }
+                    
+                } catch (EOFException e) {
+                    // Клиент закрыл соединение
+                    break;
                 }
-                
-                break;
             }
             
             System.out.println("Клиент отключился. Всего обработано запросов: " + requestCount);
